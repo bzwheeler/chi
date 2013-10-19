@@ -19,17 +19,21 @@ REQUEST_PARAMS =
 
 SERIALIZERS =
   html :
-    success : (req, res, result) -> res.send(result)
-    fail    : (req, res, err) -> res.send(500, err.toString())
+    success : (req, res, result) ->
+      res.send(result)
+    fail    : (req, res, err) ->
+      console.log err.stack
+      res.send 500, err.message
   json :
     success : (req, res, result) ->
       res.json
         status : 'success'
         data   : result
     fail : (req, res, err) ->
+      console.log err.stack
       res.json
         status : 'error',
-        data   : err.toString()
+        data   : err.message
   file : 
     success : (req, res, result) ->
       fileName = ''
@@ -38,18 +42,20 @@ SERIALIZERS =
 
       if typeof result == 'object'
         filePath = result.path
-        fileName = result.name || path.baseName filePath
+        fileName = result.name || path.basename filePath
         fileType = result.type if result.type
       else
         filePath = result
-        fileName = path.baseName filePath
+        fileName = path.basename filePath
 
       res.setHeader('Content-disposition', "attachment; filename=#{fileName}")
       res.setHeader('Content-Type', fileType) if fileType
 
       filestream = fs.createReadStream(filePath)
       filestream.pipe(res)
-    fail : (req, res, err) -> res.send(500, 'file not found')
+    fail : (req, res, err) ->
+      console.log err.stack
+      res.send 500, 'file not found'
 
 initializeController = (app, routes, controllerName) ->
   controller   = require(controllerName)
@@ -113,9 +119,11 @@ loadDependencies = (dependenciesList) ->
   for name, dependency of dependenciesList
     if typeof dependency == 'string'
       dependencies[name] = require dependency
-    else
+    else if typeof dependency == 'object' && dependency.path?
       dependencies[name] = require dependency.path
       dependencies[name] = dependency.filter(dependencies[name]) if dependency.filter
+    else
+      dependencies[name] = dependency
 
   return dependencies
 
@@ -124,8 +132,8 @@ loadInjectors = (injectorsList) ->
 
   for name, fn of injectorsList
     injectors[name] =
-      args : getArgs(fn),
-      fn   : fn
+      args     : getArgs(fn)
+      fn       : fn
 
   return injectors
 
