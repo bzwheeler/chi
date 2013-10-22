@@ -57,9 +57,9 @@ SERIALIZERS =
       console.log err.stack
       res.send 500, 'file not found'
 
-initializeController = (app, routes, controllerName) ->
-  controller   = require(controllerName)
-  [dependencies, injectors, serializers] = loadConfig controller
+initializeController = (app, routes, controllerName, basePath = '.') ->
+  controller   = require "#{basePath}/controllers/#{controllerName}"
+  [dependencies, injectors, serializers] = loadConfig controller, basePath
 
   for routeName, controllerAction of routes
     [method, url] = controllerAction.split /\s+/, 2
@@ -98,14 +98,14 @@ initializeController = (app, routes, controllerName) ->
 
     app[method].apply app, middleware
 
-loadConfig = (controller) ->
+loadConfig = (controller, basePath) ->
   results = []
-  config  = if controller.config then require controller.config else {}
+  config  = if controller.config then require "#{basePath}/#{controller.config}" else {}
 
   for option in ['dependencies', 'injectors', 'serializers']
     list = _.extend({}, config[option] || {}, controller[option] || {})
     if option == 'dependencies'
-      results.push loadDependencies(list)
+      results.push loadDependencies(list, basePath)
     else if option == 'injectors'
       results.push loadInjectors(list)
     else if option == 'serializers'
@@ -113,14 +113,14 @@ loadConfig = (controller) ->
 
   return results
 
-loadDependencies = (dependenciesList) ->
+loadDependencies = (dependenciesList, basePath) ->
   dependencies = {}
 
   for name, dependency of dependenciesList
     if typeof dependency == 'string'
-      dependencies[name] = require dependency
+      dependencies[name] = require "#{basePath}/#{dependency}"
     else if typeof dependency == 'object' && dependency.path?
-      dependencies[name] = require dependency.path
+      dependencies[name] = require "#{basePath}/#{dependency.path}"
       dependencies[name] = dependency.filter(dependencies[name]) if dependency.filter
     else
       dependencies[name] = dependency
@@ -218,7 +218,7 @@ callWithInjectedArgs = (fn, scope, argNames, req, dependencies, injectors) ->
     else if dependencies[arg]
       return dependencies[arg]
     else
-      return require(arg)
+      return require arg
 
   if not injectedArgs.length
     Q().then () -> fn.call(scope) 
@@ -226,6 +226,6 @@ callWithInjectedArgs = (fn, scope, argNames, req, dependencies, injectors) ->
     Q.all(injectedArgs)
       .then (resolvedArgs) -> fn.apply(scope, resolvedArgs)
 
-module.exports = (app, routeMap, routePath) ->
+module.exports = (app, routeMap, basePath) ->
   for controllerName, routes of routeMap
-    initializeController app, routes, "#{routePath}#{controllerName}"
+    initializeController app, routes, controllerName, basePath

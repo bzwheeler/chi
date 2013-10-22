@@ -1,5 +1,5 @@
 module.exports =
-    config : './config'
+    config : 'config'
 
     requests :
         index : [
