@@ -206,7 +206,7 @@ callWithInjectedArgs = (fn, scope, argNames, req, dependencies, injectors) ->
   injectedArgs = argNames.map (arg) ->
     arg = arg.substr(1) # strip off the leading $
 
-    if req.$scope? and "$#{arg}" of req.scope
+    if req.$scope? and "$#{arg}" of req.$scope
       return req.$scope["$#{arg}"]
     else if arg of REQUEST_PARAMS
       return req[arg]
