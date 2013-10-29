@@ -16,13 +16,13 @@ REQUEST_PARAMS =
   cookies  : true
   protocol : true
   url      : true
+  form     : true
 
 SERIALIZERS =
   html :
     success : (req, res, result) ->
       res.send(result)
     fail    : (req, res, err) ->
-      console.log err.stack
       res.send 500, err.message
   json :
     success : (req, res, result) ->
@@ -30,7 +30,6 @@ SERIALIZERS =
         status : 'success'
         data   : result
     fail : (req, res, err) ->
-      console.log err.stack
       res.json
         status : 'error',
         data   : err.message
@@ -54,7 +53,6 @@ SERIALIZERS =
       filestream = fs.createReadStream(filePath)
       filestream.pipe(res)
     fail : (req, res, err) ->
-      console.log err.stack
       res.send 500, 'file not found'
 
 initializeController = (app, routes, controllerName, basePath = '.') ->
@@ -64,39 +62,52 @@ initializeController = (app, routes, controllerName, basePath = '.') ->
   for routeName, controllerAction of routes
     [method, url] = controllerAction.split /\s+/, 2
     routeConfig   = controller.requests[routeName]
-    middleware    = [
-      url,
-      (req, res, next) ->
-        req.$scope = {}
-        next()
-    ]
+    middleware    = []
 
     unless routeConfig
       throw new Error("Missing controller action '#{controllerAction}' on controller '#{controllerName}' for route '#{routeName}'")
     
     lastHandler = routeConfig[routeConfig.length - 1]
-    lastKey     = ''
+    lastKey     = 'json'
 
     # get the last handler from the routeConfig
     if typeof lastHandler == 'object'
-      keys        = Object.keys(lastHandler)
-      lastKey     = keys.pop()
-      object      = lastHandler
-      lastHandler = object[lastKey]
-      delete object[lastKey]
-    else
-      routeConfig.pop()
+      lastKey = Object.keys(lastHandler).pop()
+
+    {success, fail} = serializers[lastKey]
+
+    if (!success)
+      throw new Error("Could not find a success serializer of type #{lastKey}")
+
+    if (!fail)
+      throw new Error("Could not find a fail serializer of type #{lastKey}")
 
     for handlers, index in routeConfig
       if typeof handlers == 'object'
         for handlerName, handler of handlers
-          middleware.push injectedMiddleware(handler, handlerName, dependencies, injectors)
+          middleware.push addMiddleware(handler, handlerName, dependencies, injectors)
       else
-        middleware.push injectedMiddleware(handlers, '', dependencies, injectors)
+        middleware.push addMiddleware(handlers, '', dependencies, injectors)
 
-    middleware.push injectedMiddleware(lastHandler, lastKey, dependencies, injectors, serializers)
+    registerRoute app, method, url, middleware, success, fail
+    
 
-    app[method].apply app, middleware
+registerRoute = (app, method, url, middleware, success, fail) ->
+  app[method] url, (req, res) ->
+    req.$scope = {}
+    callMiddleware(middleware, 0, req, res)
+      .then (result) ->
+        success(req, res, result)
+      .fail (err) ->
+        fail(req, res, err)
+
+callMiddleware = (middleware, index, req, res) ->
+  middleware[index++](req, res)
+    .then (result) ->
+      if middleware[index]
+        return callMiddleware(middleware, index, req, res)
+      else
+        return result
 
 loadConfig = (controller, basePath) ->
   results = []
@@ -166,40 +177,42 @@ clone = (obj) ->
   return newInstance
 
 
-injectedMiddleware = (fn, fnName, dependencies, injectors, serializers) ->
+addMiddleware = (fn, fnName, dependencies, injectors) ->
   unless typeof fn == 'function'
     throw new Error('unsupported handler type, expected object or function and received "' + typeof fn + '"')
 
   store    = fnName.match(/^\$.*/)
   argNames = getArgs fn
+  injected = true
+  injected &= Boolean(arg.match /^\$.*/) for arg in argNames
   
-  if serializers
+  # bypass injection if this is standard middleware
+  if !injected && argNames?.length
     return (req, res) ->
-      callWithInjectedArgs(fn, {}, argNames, req, dependencies, injectors)
-        .then (result) ->
-          fnName = fnName || 'json'
-          if serializers?[fnName]?.success
-            return serializers[fnName].success(req, res, result)
-
-          throw new Error("Could not find a success serializer for '#{fnName}'")
-        .fail (error) ->
-          if serializers?[fnName]?.fail
-            return serializers[fnName].fail(req, res, error)
-
-          throw new Error("Could not find a fail serializer for '#{fnName}'")
-
-  else
-    return (req, res, next) ->
-      callWithInjectedArgs(fn, {}, argNames, req, dependencies, injectors)
-        .then (result) ->
-          req.$scope[fnName] = result if store
-          next()
-        .fail (error) ->
-          next error
+      Q().then ->
+        # if asking for 3 args, pass in a callback method
+        if (fn.length == 3)
+          deferred = Q.defer()
+          fn(req, res, (err) ->
+            if (err)
+              deferred.reject(err)
+            else
+              deferred.resolve()
+          )
+          return deferred.promise
+        else
+          return fn(req, res)
+  
+  return (req, res) ->
+    callWithInjectedArgs(fn, {}, argNames, req, dependencies, injectors)
+      .then (result) ->
+        req.$scope[fnName] = result if store
+        return result
 
 getArgs = (fn) ->
   fnStr = fn.toString().replace(STRIP_COMMENTS, "")
-  args = fnStr.match(FN_ARGS)[1].split(FN_ARG_SPLIT)
+  args  = fnStr.match(FN_ARGS)[1].split(FN_ARG_SPLIT)
+
   (if args.length is 1 and args[0] is "" then [] else args)
 
 callWithInjectedArgs = (fn, scope, argNames, req, dependencies, injectors) ->
