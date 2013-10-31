@@ -237,7 +237,9 @@ callWithInjectedArgs = (fn, scope, argNames, req, dependencies, injectors) ->
     Q().then () -> fn.call(scope) 
   else
     Q.all(injectedArgs)
-      .then (resolvedArgs) -> fn.apply(scope, resolvedArgs)
+      .then (resolvedArgs) ->
+        req.$scope[arg] = resolvedArgs[index] for arg, index in argNames
+        return fn.apply(scope, resolvedArgs)
 
 module.exports = (app, routeMap, basePath) ->
   for controllerName, routes of routeMap
