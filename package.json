@@ -1,6 +1,6 @@
 {
   "name": "chi",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "dependency injected routing with express",
   "main": "routebuilder.coffee",
   "scripts": {
