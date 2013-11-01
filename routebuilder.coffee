@@ -15,7 +15,6 @@ REQUEST_PARAMS =
   files    : true
   cookies  : true
   protocol : true
-  url      : true
   form     : true
 
 SERIALIZERS =
