@@ -7,16 +7,16 @@ FN_ARGS        = /^function\s*[^\(]*\(\s*([^\)]*)\)/m
 FN_ARG_SPLIT   = /\s*,\s*/
 STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg
 REQUEST_PARAMS =
-  body     : true
-  query    : true
-  url      : true
-  headers  : true
-  params   : true
-  files    : true
-  cookies  : true
-  protocol : true
-  url      : true
-  form     : true
+  body       : true
+  query      : true
+  url        : true
+  headers    : true
+  params     : true
+  files      : true
+  cookies    : true
+  protocol   : true
+  form       : true
+  statusCode : true
 
 SERIALIZERS =
   html :
