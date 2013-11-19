@@ -26,13 +26,14 @@ SERIALIZERS =
       res.send 500, err.message
   json :
     success : (req, res, result) ->
-      res.json
-        status : 'success'
+      res.statusCode = if req.method == "POST" then 201 else 200
+      res.json res.statusCode,
         data   : result
     fail : (req, res, err) ->
-      res.json
-        status : 'error',
-        data   : err.message
+      # In some cases it seems that err.status is set instead of err.statusCode.
+      status_code = err.statusCode or err.status
+      res.json status_code,
+        error: err.message
   file : 
     success : (req, res, result) ->
       fileName = ''
