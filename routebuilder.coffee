@@ -30,7 +30,7 @@ SERIALIZERS =
       res.json res.statusCode,
         data   : result
     fail : (req, res, err) ->
-      # In some cases it seems that err.status is set instead of err.statusCode.
+      # err.status may be set when an exception is thrown
       status_code = err.statusCode or err.status
       res.json status_code,
         error: err.message
@@ -54,9 +54,10 @@ SERIALIZERS =
       filestream = fs.createReadStream(filePath)
       filestream.pipe(res)
     fail : (req, res, err) ->
-      err.statusCode = 404
-      err.message = "File Not Found"
-      res.json err.statusCode, error: err.message
+      # err.status may be set when an exception is thrown
+      status_code = err.statusCode or err.status
+      res.json status_code,
+        error: err.message
 
 initializeController = (app, routes, controllerName, basePath = '.') ->
   controller   = require "#{basePath}/controllers/#{controllerName}"
