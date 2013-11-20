@@ -54,7 +54,9 @@ SERIALIZERS =
       filestream = fs.createReadStream(filePath)
       filestream.pipe(res)
     fail : (req, res, err) ->
-      res.send 500, 'file not found'
+      err.statusCode = 404
+      err.message = "File Not Found"
+      res.json err.statusCode, error: err.message
 
 initializeController = (app, routes, controllerName, basePath = '.') ->
   controller   = require "#{basePath}/controllers/#{controllerName}"
