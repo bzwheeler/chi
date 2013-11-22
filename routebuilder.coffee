@@ -26,13 +26,14 @@ SERIALIZERS =
       res.send 500, err.message
   json :
     success : (req, res, result) ->
-      res.json
-        status : 'success'
+      res.statusCode = if req.method == "POST" then 201 else 200
+      res.json res.statusCode,
         data   : result
     fail : (req, res, err) ->
-      res.json
-        status : 'error',
-        data   : err.message
+      # err.status may be set when an exception is thrown
+      status_code = err.statusCode or err.status
+      res.json status_code,
+        error: err.message
   file : 
     success : (req, res, result) ->
       fileName = ''
@@ -53,7 +54,10 @@ SERIALIZERS =
       filestream = fs.createReadStream(filePath)
       filestream.pipe(res)
     fail : (req, res, err) ->
-      res.send 500, 'file not found'
+      # err.status may be set when an exception is thrown
+      status_code = err.statusCode or err.status
+      res.json status_code,
+        error: err.message
 
 initializeController = (app, routes, controllerName, basePath = '.') ->
   controller   = require "#{basePath}/controllers/#{controllerName}"
