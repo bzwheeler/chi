@@ -30,9 +30,8 @@ SERIALIZERS =
       res.json res.statusCode,
         data   : result
     fail : (req, res, err) ->
-      # err.status may be set when an exception is thrown
-      status_code = err.statusCode or err.status
-      res.json status_code,
+      err.statusCode = err.status
+      res.json err.statusCode,
         error: err.message
   file : 
     success : (req, res, result) ->
@@ -54,9 +53,8 @@ SERIALIZERS =
       filestream = fs.createReadStream(filePath)
       filestream.pipe(res)
     fail : (req, res, err) ->
-      # err.status may be set when an exception is thrown
-      status_code = err.statusCode or err.status
-      res.json status_code,
+      err.statusCode = err.status
+      res.json err.statusCode,
         error: err.message
 
 initializeController = (app, routes, controllerName, basePath = '.') ->
