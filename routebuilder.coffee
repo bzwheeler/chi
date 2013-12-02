@@ -42,10 +42,12 @@ SERIALIZERS =
       if typeof result == 'object'
         filePath = result.path
         fileName = result.name || path.basename filePath
+        fileName = escape fileName
         fileType = result.type if result.type
       else
         filePath = result
         fileName = path.basename filePath
+        fileName = escape fileName
 
       res.setHeader('Content-disposition', "attachment; filename=#{fileName}")
       res.setHeader('Content-Type', fileType) if fileType
