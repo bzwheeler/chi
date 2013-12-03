@@ -28,11 +28,13 @@ SERIALIZERS =
     success : (req, res, result) ->
       res.statusCode = if req.method == "POST" then 201 else 200
       res.json res.statusCode,
+        status : 'success'
         data   : result
     fail : (req, res, err) ->
       err.statusCode = err.status
       res.json err.statusCode,
-        error: err.message
+        status : 'error'
+        data   : err.message
   file : 
     success : (req, res, result) ->
       fileName = ''
@@ -57,7 +59,7 @@ SERIALIZERS =
     fail : (req, res, err) ->
       err.statusCode = err.status
       res.json err.statusCode,
-        error: err.message
+        data: err.message
 
 initializeController = (app, routes, controllerName, basePath = '.') ->
   controller   = require "#{basePath}/controllers/#{controllerName}"
