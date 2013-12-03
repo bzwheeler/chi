@@ -59,6 +59,7 @@ SERIALIZERS =
     fail : (req, res, err) ->
       err.statusCode = err.status
       res.json err.statusCode,
+        status: 'error'
         data: err.message
 
 initializeController = (app, routes, controllerName, basePath = '.') ->
